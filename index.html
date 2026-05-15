@@ -55,6 +55,8 @@
     }
 
     h1 {
+      position: relative;
+      display: inline-block;
       margin: 0;
       font-size: clamp(52px, 16vw, 80px);
       line-height: .9;
@@ -62,6 +64,17 @@
       cursor: pointer;
       touch-action: manipulation;
       user-select: none;
+    }
+
+    h1 .version {
+      position: absolute;
+      right: -26px;
+      bottom: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1;
+      opacity: .72;
     }
 
     .scores {
@@ -354,7 +367,7 @@
 <body>
   <main>
     <section class="topbar" aria-label="游戏状态">
-      <h1 id="title">2048</h1>
+      <h1 id="title">2048<span class="version">v1.1</span></h1>
       <div class="scores">
         <div class="score-box">
           <span>Score</span>
