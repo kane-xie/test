@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>2048</title>
   <style>
     :root {
@@ -39,6 +39,7 @@
         linear-gradient(135deg, rgba(38, 115, 107, .10), transparent 38%),
         linear-gradient(315deg, rgba(155, 63, 52, .10), transparent 34%),
         var(--page);
+      touch-action: manipulation;
     }
 
     main {
@@ -204,9 +205,8 @@
       overflow: hidden;
       box-shadow: inset 0 -4px rgba(0, 0, 0, .05);
       cursor: default;
-      transition: transform .16s cubic-bezier(.2, .8, .2, 1), opacity .16s ease;
-      scale: 1;
-      will-change: transform, opacity, scale;
+      transition: transform .22s cubic-bezier(.2, .8, .2, 1), opacity .18s ease;
+      will-change: transform, opacity;
     }
 
     .tile.ghost {
@@ -215,7 +215,7 @@
     }
 
     .tile.spawned {
-      animation: spawn .95s cubic-bezier(.18, 1.15, .3, 1);
+      animation: spawn .28s ease-out;
     }
 
     .tile[data-value="4"] { background: #ede0c8; }
@@ -294,39 +294,19 @@
 
     @keyframes spawn {
       0% {
-        opacity: .15;
-        scale: .25;
+        opacity: 0;
         box-shadow:
           inset 0 -4px rgba(0, 0, 0, .05),
-          0 0 0 5px rgba(255, 250, 244, .76),
-          0 0 28px rgba(38, 115, 107, .46),
-          0 12px 28px rgba(38, 115, 107, .28);
+          0 0 0 3px rgba(255, 250, 244, .55);
       }
-      32% {
+      50% {
         opacity: 1;
-        scale: 1.18;
         box-shadow:
           inset 0 -4px rgba(0, 0, 0, .05),
-          0 0 0 5px rgba(255, 250, 244, .76),
-          0 0 30px rgba(38, 115, 107, .44),
-          0 12px 28px rgba(38, 115, 107, .28);
-      }
-      58% {
-        scale: .96;
-        box-shadow:
-          inset 0 -4px rgba(0, 0, 0, .05),
-          0 0 0 4px rgba(255, 250, 244, .56),
-          0 0 24px rgba(38, 115, 107, .30);
-      }
-      78% {
-        box-shadow:
-          inset 0 -4px rgba(0, 0, 0, .05),
-          0 0 0 2px rgba(255, 250, 244, .24),
-          0 0 14px rgba(38, 115, 107, .18);
+          0 0 0 4px rgba(255, 250, 244, .45);
       }
       100% {
         opacity: 1;
-        scale: 1;
         box-shadow: inset 0 -4px rgba(0, 0, 0, .05);
       }
     }
@@ -948,6 +928,15 @@
     let touchStart = null;
     let lastBoardTap = null;
     let lastTitleTap = 0;
+    let lastTouchEnd = 0;
+
+    document.addEventListener("touchend", (event) => {
+      const now = Date.now();
+      if (now - lastTouchEnd <= doubleTapDelay) {
+        event.preventDefault();
+      }
+      lastTouchEnd = now;
+    }, { passive: false });
 
     function isSameCell(a, b) {
       return a && b && a.row === b.row && a.col === b.col;
