@@ -1,0 +1,823 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>2048</title>
+  <style>
+    :root {
+      --page: #f5f3ed;
+      --ink: #2d2a26;
+      --muted: #756f67;
+      --panel: #fffaf0;
+      --board: #9f9488;
+      --gap: 12px;
+      --cell: rgba(238, 228, 218, .45);
+      --accent: #26736b;
+      --accent-dark: #1d5b55;
+      --danger: #9b3f34;
+      --shadow: 0 18px 45px rgba(65, 54, 42, .16);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+      margin: 0;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      color: var(--ink);
+      background:
+        linear-gradient(135deg, rgba(38, 115, 107, .10), transparent 38%),
+        linear-gradient(315deg, rgba(155, 63, 52, .10), transparent 34%),
+        var(--page);
+    }
+
+    main {
+      width: min(100%, 520px);
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: end;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(52px, 16vw, 80px);
+      line-height: .9;
+      letter-spacing: 0;
+    }
+
+    .scores {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .score-box {
+      min-width: 82px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      color: #fffaf4;
+      background: #4f463c;
+      text-align: center;
+      box-shadow: 0 8px 20px rgba(45, 42, 38, .14);
+    }
+
+    .score-box span {
+      display: block;
+      margin-bottom: 2px;
+      color: rgba(255, 250, 244, .72);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    .score-box strong {
+      display: block;
+      min-height: 28px;
+      font-size: 24px;
+      line-height: 1.15;
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 18px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.45;
+    }
+
+    .buttons {
+      display: flex;
+      flex: 0 0 auto;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    button {
+      height: 42px;
+      border: 0;
+      border-radius: 8px;
+      padding: 0 14px;
+      color: white;
+      background: var(--accent);
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform .12s ease, background .12s ease, opacity .12s ease;
+    }
+
+    button:hover {
+      background: var(--accent-dark);
+      transform: translateY(-1px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+      button.secondary {
+        background: #6f6256;
+      }
+
+      button.secondary:hover {
+        background: #5c5249;
+      }
+
+      button.armed {
+        background: #9b3f34;
+      }
+
+      button:disabled {
+        cursor: default;
+        opacity: .5;
+        transform: none;
+    }
+
+    .game-wrap {
+      position: relative;
+      padding: var(--gap);
+      border-radius: 8px;
+      background: var(--board);
+      box-shadow: var(--shadow);
+      touch-action: none;
+      user-select: none;
+    }
+
+    .grid,
+    .tiles {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(4, 1fr);
+      gap: var(--gap);
+      aspect-ratio: 1 / 1;
+    }
+
+    .grid-cell {
+      border-radius: 7px;
+      background: var(--cell);
+    }
+
+    .tiles {
+      position: absolute;
+      inset: var(--gap);
+      pointer-events: none;
+    }
+
+    .tile {
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      border-radius: 7px;
+      padding: 0 4px;
+      color: var(--tile-color, #766d64);
+      background: var(--tile-bg, #eee4da);
+      font-size: 54px;
+      font-weight: 900;
+      line-height: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      box-shadow: inset 0 -4px rgba(0, 0, 0, .05);
+      cursor: default;
+    }
+
+    .tile.spawned {
+      animation: spawn .95s cubic-bezier(.18, 1.15, .3, 1);
+    }
+
+    .tile[data-value="4"] { background: #ede0c8; }
+    .tile[data-value="8"] { color: #fffaf4; background: #e49a52; }
+    .tile[data-value="16"] { color: #fffaf4; background: #dc7346; }
+    .tile[data-value="32"] { color: #fffaf4; background: #c95b48; }
+    .tile[data-value="64"] { color: #fffaf4; background: var(--danger); }
+    .tile[data-value="128"] { color: #fffaf4; background: #d6b354; }
+    .tile[data-value="256"] { color: #fffaf4; background: #c99d3d; }
+    .tile[data-value="512"] { color: #fffaf4; background: #b8892d; }
+    .tile[data-value="1024"] { color: #fffaf4; background: #457a8b; }
+    .tile[data-value="2048"] { color: #fffaf4; background: #26736b; }
+    .tile.digits-3 { font-size: 46px; }
+    .tile.digits-4 { font-size: 38px; }
+    .tile.digits-5 { font-size: 31px; }
+    .tile.digits-6 { font-size: 25px; }
+    .tile.digits-7,
+    .tile.digits-8 { font-size: 21px; }
+    .tile.super { color: var(--tile-color, #fffaf4); }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      place-items: center;
+      padding: 24px;
+      border-radius: 8px;
+      background: rgba(255, 250, 240, .88);
+      text-align: center;
+    }
+
+    .overlay.show {
+      display: grid;
+    }
+
+    .toast {
+      position: absolute;
+      top: 18px;
+      left: 50%;
+      z-index: 2;
+      max-width: calc(100% - 36px);
+      transform: translateX(-50%);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #fffaf4;
+      background: rgba(38, 115, 107, .95);
+      font-weight: 800;
+      line-height: 1.3;
+      text-align: center;
+      box-shadow: 0 10px 26px rgba(45, 42, 38, .22);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .18s ease, transform .18s ease;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translate(-50%, 4px);
+    }
+
+    .message {
+      max-width: 320px;
+    }
+
+    .message h2 {
+      margin: 0 0 12px;
+      font-size: 42px;
+      letter-spacing: 0;
+    }
+
+    .message p {
+      margin: 0 0 18px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    @keyframes spawn {
+      0% {
+        opacity: .15;
+        transform: scale(.25);
+        box-shadow:
+          inset 0 -4px rgba(0, 0, 0, .05),
+          0 0 0 5px rgba(255, 250, 244, .76),
+          0 0 28px rgba(38, 115, 107, .46),
+          0 12px 28px rgba(38, 115, 107, .28);
+      }
+      32% {
+        opacity: 1;
+        transform: scale(1.18);
+        box-shadow:
+          inset 0 -4px rgba(0, 0, 0, .05),
+          0 0 0 5px rgba(255, 250, 244, .76),
+          0 0 30px rgba(38, 115, 107, .44),
+          0 12px 28px rgba(38, 115, 107, .28);
+      }
+      58% {
+        transform: scale(.96);
+        box-shadow:
+          inset 0 -4px rgba(0, 0, 0, .05),
+          0 0 0 4px rgba(255, 250, 244, .56),
+          0 0 24px rgba(38, 115, 107, .30);
+      }
+      78% {
+        box-shadow:
+          inset 0 -4px rgba(0, 0, 0, .05),
+          0 0 0 2px rgba(255, 250, 244, .24),
+          0 0 14px rgba(38, 115, 107, .18);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1);
+        box-shadow: inset 0 -4px rgba(0, 0, 0, .05);
+      }
+    }
+
+    @media (max-width: 520px) {
+      body {
+        padding: 16px;
+        align-items: start;
+      }
+
+      .topbar {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+        gap: 14px;
+      }
+
+      .scores {
+        justify-content: stretch;
+      }
+
+      .score-box {
+        flex: 1;
+      }
+
+      .actions {
+        display: grid;
+        gap: 12px;
+      }
+
+      .buttons {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .tile { font-size: 42px; }
+      .tile.digits-3 { font-size: 36px; }
+      .tile.digits-4 { font-size: 30px; }
+      .tile.digits-5 { font-size: 25px; }
+      .tile.digits-6 { font-size: 20px; }
+      .tile.digits-7,
+      .tile.digits-8 { font-size: 17px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="topbar" aria-label="游戏状态">
+      <h1 id="title">2048</h1>
+      <div class="scores">
+        <div class="score-box">
+          <span>Score</span>
+          <strong id="score">0</strong>
+        </div>
+        <div class="score-box">
+          <span>Best</span>
+          <strong id="best">0</strong>
+        </div>
+        <div class="score-box">
+          <span>Max</span>
+          <strong id="max-tile">0</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="actions">
+      <div>合并相同数字，到达 2048。</div>
+      <div class="buttons">
+        <button class="secondary" id="undo" type="button">撤销</button>
+        <button id="new-game" type="button">新游戏</button>
+      </div>
+    </section>
+
+    <section class="game-wrap" id="game" aria-label="2048 棋盘">
+      <div class="grid" aria-hidden="true"></div>
+      <div class="tiles" id="tiles"></div>
+      <div class="toast" id="toast" role="status" aria-live="polite">达成 2048，可以继续玩</div>
+      <div class="overlay" id="overlay">
+        <div class="message">
+          <h2 id="message-title">游戏结束</h2>
+          <p id="message-copy">没有可移动的格子了。</p>
+          <button id="overlay-action" type="button">再来一局</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const size = 4;
+    const emptyBoard = () => Array.from({ length: size }, () => Array(size).fill(0));
+    const titleEl = document.querySelector("#title");
+    const scoreEl = document.querySelector("#score");
+    const bestEl = document.querySelector("#best");
+    const maxTileEl = document.querySelector("#max-tile");
+    const tilesEl = document.querySelector("#tiles");
+    const gridEl = document.querySelector(".grid");
+    const toastEl = document.querySelector("#toast");
+    const overlayEl = document.querySelector("#overlay");
+    const messageTitleEl = document.querySelector("#message-title");
+    const messageCopyEl = document.querySelector("#message-copy");
+    const undoButton = document.querySelector("#undo");
+    const newGameButton = document.querySelector("#new-game");
+    const overlayAction = document.querySelector("#overlay-action");
+    const gameEl = document.querySelector("#game");
+
+    const bestKey = "codex-2048-best";
+    const stateKey = "codex-2048-state";
+    let board;
+    let score;
+    let best = Number(localStorage.getItem(bestKey) || 0);
+    let previous = null;
+    let won = false;
+    let finished = false;
+    let overlayOpen = false;
+    let skipSpawnOnce = false;
+    let spawnedCells = [];
+    let toastTimer = null;
+
+    for (let i = 0; i < size * size; i += 1) {
+      const cell = document.createElement("div");
+      cell.className = "grid-cell";
+      gridEl.appendChild(cell);
+    }
+
+    function cloneBoard(source) {
+      return source.map((row) => [...row]);
+    }
+
+    function isValidBoard(value) {
+      return Array.isArray(value)
+        && value.length === size
+        && value.every((row) => Array.isArray(row)
+          && row.length === size
+          && row.every((cell) => Number.isInteger(cell) && cell >= 0));
+    }
+
+    function saveState() {
+      const state = {
+        board,
+        score,
+        best,
+        previous,
+        won,
+        finished,
+        overlayOpen,
+        skipSpawnOnce
+      };
+      localStorage.setItem(stateKey, JSON.stringify(state));
+    }
+
+    function loadState() {
+      try {
+        const state = JSON.parse(localStorage.getItem(stateKey));
+        if (!state || !isValidBoard(state.board)) return false;
+
+        board = cloneBoard(state.board);
+        score = Number.isFinite(state.score) ? state.score : 0;
+        best = Number.isFinite(state.best) ? Math.max(best, state.best) : best;
+        localStorage.setItem(bestKey, String(best));
+        previous = state.previous && isValidBoard(state.previous.board)
+          ? {
+              board: cloneBoard(state.previous.board),
+              score: Number.isFinite(state.previous.score) ? state.previous.score : 0,
+              won: Boolean(state.previous.won),
+              finished: Boolean(state.previous.finished),
+              skipSpawnOnce: Boolean(state.previous.skipSpawnOnce)
+            }
+          : null;
+        won = Boolean(state.won);
+        finished = Boolean(state.finished);
+        overlayOpen = Boolean(state.overlayOpen);
+        skipSpawnOnce = Boolean(state.skipSpawnOnce);
+        spawnedCells = [];
+        return true;
+      } catch {
+        localStorage.removeItem(stateKey);
+        return false;
+      }
+    }
+
+    function randomEmptyCell() {
+      const cells = [];
+      board.forEach((row, r) => {
+        row.forEach((value, c) => {
+          if (!value) cells.push([r, c]);
+        });
+      });
+      return cells[Math.floor(Math.random() * cells.length)];
+    }
+
+    function addRandomTile() {
+      const cell = randomEmptyCell();
+      if (!cell) return;
+      const [r, c] = cell;
+      board[r][c] = Math.random() < .9 ? 2 : 4;
+      spawnedCells.push(`${r}-${c}`);
+    }
+
+    function applyTilePresentation(tile, value) {
+      const digits = Math.min(String(value).length, 8);
+      tile.classList.add(`digits-${digits}`);
+
+      if (value <= 2048) return;
+
+      const highValuePalette = [
+        "#215f6d",
+        "#6a4c93",
+        "#2f7d4f",
+        "#a45a2a",
+        "#8f3f5f",
+        "#3d5a80",
+        "#6d6a2f",
+        "#5f4b32"
+      ];
+      const power = Math.round(Math.log2(value));
+      tile.style.setProperty("--tile-bg", highValuePalette[power % highValuePalette.length]);
+      tile.style.setProperty("--tile-color", "#fffaf4");
+    }
+
+    function setupGame() {
+      board = emptyBoard();
+      score = 0;
+      previous = null;
+      won = false;
+      finished = false;
+      overlayOpen = false;
+      skipSpawnOnce = false;
+      spawnedCells = [];
+      addRandomTile();
+      addRandomTile();
+      render();
+      saveState();
+    }
+
+    function render() {
+      tilesEl.replaceChildren();
+      board.forEach((row, r) => {
+        row.forEach((value, c) => {
+          if (!value) return;
+          const tile = document.createElement("div");
+          tile.className = "tile";
+          tile.textContent = value;
+          tile.dataset.value = String(value);
+          tile.dataset.row = String(r);
+          tile.dataset.col = String(c);
+          if (value > 2048) tile.classList.add("super");
+          applyTilePresentation(tile, value);
+          if (spawnedCells.includes(`${r}-${c}`)) tile.classList.add("spawned");
+          tile.style.gridRow = r + 1;
+          tile.style.gridColumn = c + 1;
+          tilesEl.appendChild(tile);
+        });
+      });
+
+      scoreEl.textContent = score;
+      bestEl.textContent = best;
+      maxTileEl.textContent = Math.max(...board.flat());
+      undoButton.disabled = !previous;
+
+      if (overlayOpen) {
+        overlayEl.classList.add("show");
+      } else {
+        overlayEl.classList.remove("show");
+      }
+
+      spawnedCells = [];
+    }
+
+    function slideAndMerge(line) {
+      const values = line.filter(Boolean);
+      const merged = [];
+      let gained = 0;
+
+      for (let i = 0; i < values.length; i += 1) {
+        if (values[i] === values[i + 1]) {
+          const next = values[i] * 2;
+          merged.push(next);
+          gained += next;
+          i += 1;
+        } else {
+          merged.push(values[i]);
+        }
+      }
+
+      while (merged.length < size) merged.push(0);
+      return { line: merged, gained };
+    }
+
+    function getLine(direction, index) {
+      if (direction === "left") return board[index];
+      if (direction === "right") return [...board[index]].reverse();
+      if (direction === "up") return board.map((row) => row[index]);
+      return board.map((row) => row[index]).reverse();
+    }
+
+    function setLine(direction, index, line) {
+      const values = direction === "right" || direction === "down" ? [...line].reverse() : line;
+      for (let i = 0; i < size; i += 1) {
+        if (direction === "left" || direction === "right") {
+          board[index][i] = values[i];
+        } else {
+          board[i][index] = values[i];
+        }
+      }
+    }
+
+    function boardsEqual(a, b) {
+      return a.every((row, r) => row.every((value, c) => value === b[r][c]));
+    }
+
+    function move(direction) {
+      if (finished) return;
+
+      const before = cloneBoard(board);
+      const beforeScore = score;
+      let gained = 0;
+      spawnedCells = [];
+
+      for (let i = 0; i < size; i += 1) {
+        const result = slideAndMerge(getLine(direction, i));
+        setLine(direction, i, result.line);
+        gained += result.gained;
+      }
+
+      if (boardsEqual(before, board)) return;
+
+      const shouldSkipSpawn = skipSpawnOnce;
+      previous = { board: before, score: beforeScore, won, finished, skipSpawnOnce };
+      skipSpawnOnce = false;
+
+      score += gained;
+      if (score > best) {
+        best = score;
+        localStorage.setItem(bestKey, String(best));
+      }
+
+      if (!shouldSkipSpawn) {
+        addRandomTile();
+      }
+
+      if (!won && board.some((row) => row.includes(2048))) {
+        won = true;
+        showToast("达成 2048，可以继续玩");
+      }
+
+      if (!canMove()) {
+        showMessage("游戏结束", "没有可移动的格子了。", true);
+      }
+
+      render();
+      saveState();
+    }
+
+    function canMove() {
+      for (let r = 0; r < size; r += 1) {
+        for (let c = 0; c < size; c += 1) {
+          const value = board[r][c];
+          if (!value) return true;
+          if (board[r][c + 1] === value || board[r + 1]?.[c] === value) return true;
+        }
+      }
+      return false;
+    }
+
+    function showMessage(title, copy, endGame) {
+      finished = endGame;
+      overlayOpen = true;
+      messageTitleEl.textContent = title;
+      messageCopyEl.textContent = copy;
+      overlayAction.textContent = endGame ? "再来一局" : "继续";
+      overlayEl.classList.add("show");
+      saveState();
+    }
+
+    function showToast(copy) {
+      toastEl.textContent = copy;
+      toastEl.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toastEl.classList.remove("show");
+      }, 1800);
+    }
+
+    function undo() {
+      if (!previous) return;
+      board = cloneBoard(previous.board);
+      score = previous.score;
+      won = previous.won;
+      finished = previous.finished;
+      overlayOpen = false;
+      skipSpawnOnce = previous.skipSpawnOnce;
+      spawnedCells = [];
+      previous = null;
+      render();
+      saveState();
+    }
+
+    function armSkipSpawn() {
+      if (finished) return;
+      skipSpawnOnce = !skipSpawnOnce;
+      render();
+      saveState();
+      showToast(skipSpawnOnce ? "下一步不刷新数字" : "已取消本步不刷");
+    }
+
+    function doubleTile(row, col) {
+      const value = board[row]?.[col];
+      if (finished || (value !== 2 && value !== 4)) return;
+
+      previous = {
+        board: cloneBoard(board),
+        score,
+        won,
+        finished,
+        skipSpawnOnce
+      };
+
+      board[row][col] = value * 2;
+      spawnedCells = [];
+      render();
+      saveState();
+    }
+
+    function getCellFromPoint(clientX, clientY) {
+      const rect = tilesEl.getBoundingClientRect();
+      const gap = Number.parseFloat(getComputedStyle(tilesEl).gap) || 0;
+      const cellSize = (rect.width - gap * (size - 1)) / size;
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+
+      if (x < 0 || y < 0 || x > rect.width || y > rect.height) return null;
+
+      const col = Math.floor(x / (cellSize + gap));
+      const row = Math.floor(y / (cellSize + gap));
+      const cellX = col * (cellSize + gap);
+      const cellY = row * (cellSize + gap);
+
+      if (col < 0 || col >= size || row < 0 || row >= size) return null;
+      if (x > cellX + cellSize || y > cellY + cellSize) return null;
+
+      return { row, col };
+    }
+
+    function continueAfterWin() {
+      if (!finished) {
+        overlayOpen = false;
+        overlayEl.classList.remove("show");
+      } else {
+        setupGame();
+      }
+    }
+
+    const keyMap = {
+      ArrowLeft: "left",
+      KeyA: "left",
+      ArrowRight: "right",
+      KeyD: "right",
+      ArrowUp: "up",
+      KeyW: "up",
+      ArrowDown: "down",
+      KeyS: "down"
+    };
+
+    window.addEventListener("keydown", (event) => {
+      const direction = keyMap[event.code];
+      if (!direction) return;
+      event.preventDefault();
+      move(direction);
+    });
+
+    let touchStart = null;
+    gameEl.addEventListener("pointerdown", (event) => {
+      touchStart = { x: event.clientX, y: event.clientY };
+      gameEl.setPointerCapture(event.pointerId);
+    });
+
+    gameEl.addEventListener("pointerup", (event) => {
+      if (!touchStart) return;
+      const dx = event.clientX - touchStart.x;
+      const dy = event.clientY - touchStart.y;
+      touchStart = null;
+
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 28) return;
+
+      if (Math.abs(dx) > Math.abs(dy)) {
+        move(dx > 0 ? "right" : "left");
+      } else {
+        move(dy > 0 ? "down" : "up");
+      }
+    });
+
+    gameEl.addEventListener("dblclick", (event) => {
+      const cell = getCellFromPoint(event.clientX, event.clientY);
+      if (!cell) return;
+      doubleTile(cell.row, cell.col);
+    });
+
+    titleEl.addEventListener("dblclick", armSkipSpawn);
+    undoButton.addEventListener("click", undo);
+    newGameButton.addEventListener("click", setupGame);
+    overlayAction.addEventListener("click", continueAfterWin);
+
+    if (loadState()) {
+      render();
+    } else {
+      setupGame();
+    }
+  </script>
+</body>
+</html>
